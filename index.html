@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>画像圧縮ツール</title>
+<style>
+:root{
+  --bg:#f1f2f8;--surface:#fff;--ink:#1d1f33;--sub:#6b6f8a;--line:#d9dbea;
+  --accent:#4f46e5;--accent-ink:#fff;--good:#0f8a5f;--warn:#b45309;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--bg:#12131f;--surface:#1c1e30;--ink:#e8e9f5;--sub:#9a9dba;--line:#32344d;--accent:#8b85ff;--accent-ink:#12103a;--good:#4ade9d;--warn:#fbbf24}
+}
+:root[data-theme="dark"]{--bg:#12131f;--surface:#1c1e30;--ink:#e8e9f5;--sub:#9a9dba;--line:#32344d;--accent:#8b85ff;--accent-ink:#12103a;--good:#4ade9d;--warn:#fbbf24}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic",system-ui,sans-serif;line-height:1.6}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:8px 0 14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:180px;border:2px dashed var(--accent);border-radius:12px;background:var(--surface);margin-bottom:14px;text-align:center;padding:16px}
+.drop.on{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.btn{min-height:52px;padding:0 22px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font:inherit;font-size:1.05rem;font-weight:700;cursor:pointer;width:100%}
+.btn.sub{background:var(--bg);color:var(--ink);border:1px solid var(--line);min-height:44px;font-size:.9rem;font-weight:400;width:auto}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.seg button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.cmp{position:relative;width:100%;border-radius:10px;overflow:hidden;background:repeating-conic-gradient(#8884 0 25%,#0000 0 50%) 0 0/16px 16px;--p:50%}
+.cmp img{display:block;width:100%;height:100%;object-fit:fill}
+.cmp #b{position:absolute;inset:0;clip-path:inset(0 0 0 var(--p))}
+.cmp .line{position:absolute;top:0;bottom:0;left:var(--p);width:2px;background:var(--accent);pointer-events:none}
+.tag{position:absolute;top:8px;padding:2px 8px;border-radius:6px;background:#000a;color:#fff;font-size:.75rem}
+.ctrl{margin-bottom:14px}.ctrl:last-child{margin-bottom:0}
+.ctrl>label{display:block;font-size:.85rem;font-weight:700;margin-bottom:6px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{flex:1 1 auto;min-height:40px;padding:6px 10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;font:inherit;font-size:.85rem;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.row{display:flex;gap:10px;align-items:center}
+input[type=range]{flex:1;accent-color:var(--accent)}
+.val{min-width:3.4em;text-align:right;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stats div{background:var(--bg);border-radius:10px;padding:10px 12px;font-size:.85rem;color:var(--sub)}
+.stats b{display:block;font-size:1.1rem;color:var(--ink);font-variant-numeric:tabular-nums}
+#ratio.good{color:var(--good)}#ratio.bad{color:var(--warn)}
+.hint{font-size:.8rem;color:var(--sub);margin:8px 0 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>画像圧縮ツール</h1>
+
+  <div class="drop" id="drop">
+    <div>画像をここにドロップ、またはボタンで選びます</div>
+    <button class="btn" id="pick" style="max-width:320px">画像を選ぶ</button>
+    <input type="file" id="file" accept="image/*" hidden>
+  </div>
+
+  <div id="work" hidden>
+    <div class="panel">
+      <div class="cmp" id="cmp"><img id="a" alt="元の画像"><img id="b" alt="圧縮後の画像"><div class="line"></div>
+        <span class="tag" style="left:8px">元</span><span class="tag" style="right:8px">圧縮後</span></div>
+      <div class="row" style="margin-top:10px"><span class="hint" style="margin:0">元</span><input type="range" id="pos" min="0" max="100" value="50" aria-label="比較の位置"><span class="hint" style="margin:0">後</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="ctrl"><label>形式</label><div class="seg" id="fmt"></div></div>
+      <div class="ctrl" id="qc"><label>画質</label><div class="row"><input type="range" id="q" min="1" max="100" value="75"><span class="val" id="qv"></span></div></div>
+      <div class="ctrl"><label>長辺のサイズ（リサイズ）</label><div class="seg" id="size"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="stats">
+        <div>元<b id="s0"></b></div>
+        <div>圧縮後<b id="s1"></b></div>
+      </div>
+      <div class="stats" style="grid-template-columns:1fr">
+        <div>削減率<b id="ratio"></b></div>
+      </div>
+      <button class="btn" id="dl" disabled>ダウンロード</button>
+      <p class="hint" id="note"></p>
+      <button class="btn sub" id="again" style="margin-top:10px">別の画像にする</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var $=function(i){return document.getElementById(i)};
+var FMT={jpeg:{label:"JPEG",mime:"image/jpeg",ext:"jpg"},webp:{label:"WebP",mime:"image/webp",ext:"webp"},png:{label:"PNG（劣化なし）",mime:"image/png",ext:"png"}};
+var SIZES=[0,2000,1600,1200,800,600];
+var S={fmt:"jpeg",q:75,size:0};
+var src=null,img=null,baseName="image",blob=null,aUrl=null,bUrl=null,tok=0,timer=0,dl=null;
+
+function kb(n){return n>=1048576?(n/1048576).toFixed(2)+" MB":(n/1024).toFixed(1)+" KB"}
+function seg(el,items,get,set){
+  el.innerHTML="";
+  items.forEach(function(it){
+    var b=document.createElement("button");b.type="button";b.textContent=it[1];
+    b.setAttribute("aria-pressed",String(get()===it[0]));
+    b.onclick=function(){set(it[0]);ui();schedule()};el.appendChild(b);
+  });
+}
+function ui(){
+  seg($("fmt"),Object.keys(FMT).map(function(k){return [k,FMT[k].label]}),function(){return S.fmt},function(v){S.fmt=v});
+  seg($("size"),SIZES.map(function(v){return [v,v?v+"px":"元のまま"]}),function(){return S.size},function(v){S.size=v});
+  $("qc").hidden=S.fmt==="png";
+  $("qv").textContent=S.q;
+}
+function load(f){
+  if(!f||f.type.indexOf("image/")!==0)return;
+  src=f;baseName=f.name.replace(/\.[^.]+$/,"")||"image";
+  if(aUrl)URL.revokeObjectURL(aUrl);
+  aUrl=URL.createObjectURL(f);
+  var im=new Image();
+  im.onload=function(){
+    img=im;$("a").src=aUrl;
+    $("cmp").style.aspectRatio=im.naturalWidth+" / "+im.naturalHeight;
+    $("s0").textContent=kb(f.size)+"（"+im.naturalWidth+"×"+im.naturalHeight+"）";
+    $("drop").hidden=true;$("work").hidden=false;ui();run();
+  };
+  im.onerror=function(){alert("この画像は読み込めませんでした。")};
+  im.src=aUrl;
+}
+function schedule(){clearTimeout(timer);timer=setTimeout(run,150)}
+function run(){
+  if(!img)return;
+  var my=++tok,w=img.naturalWidth,h=img.naturalHeight;
+  if(S.size&&Math.max(w,h)>S.size){var k=S.size/Math.max(w,h);w=Math.round(w*k);h=Math.round(h*k)}
+  var c=document.createElement("canvas");c.width=w;c.height=h;
+  var x=c.getContext("2d");
+  if(S.fmt==="jpeg"){x.fillStyle="#fff";x.fillRect(0,0,w,h)}
+  x.imageSmoothingQuality="high";x.drawImage(img,0,0,w,h);
+  var f=FMT[S.fmt];
+  c.toBlob(function(b){
+    if(my!==tok||!b)return;
+    blob=b;
+    if(bUrl)URL.revokeObjectURL(bUrl);
+    bUrl=URL.createObjectURL(b);$("b").src=bUrl;
+    $("s1").textContent=kb(b.size)+"（"+w+"×"+h+"）";
+    var d=Math.round((1-b.size/src.size)*100),r=$("ratio");
+    r.textContent=d>=0?"−"+d+"%":"+"+(-d)+"%（元より大きい）";
+    r.className=d>=0?"good":"bad";
+    $("dl").disabled=!dl;
+    $("note").textContent=dl?"":"この画面ではダウンロードが使えません。Claudeのアプリ内で開いてください。";
+  },f.mime,S.fmt==="png"?undefined:S.q/100);
+}
+$("q").oninput=function(e){S.q=+e.target.value;$("qv").textContent=S.q;schedule()};
+$("pos").oninput=function(e){$("cmp").style.setProperty("--p",e.target.value+"%")};
+$("pick").onclick=function(){$("file").click()};
+$("file").onchange=function(e){load(e.target.files[0]);e.target.value=""};
+$("again").onclick=function(){$("work").hidden=true;$("drop").hidden=false;img=null;tok++};
+var dz=$("drop");
+["dragenter","dragover"].forEach(function(n){dz.addEventListener(n,function(e){e.preventDefault();dz.classList.add("on")})});
+["dragleave","drop"].forEach(function(n){dz.addEventListener(n,function(e){e.preventDefault();dz.classList.remove("on")})});
+dz.addEventListener("drop",function(e){load(e.dataTransfer.files[0])});
+document.addEventListener("paste",function(e){var it=[].slice.call(e.clipboardData.items).filter(function(i){return i.type.indexOf("image/")===0})[0];if(it)load(it.getAsFile())});
+$("dl").onclick=function(){
+  if(!dl||!blob)return;
+  var name=baseName+"-min."+FMT[S.fmt].ext;
+  dl.save({filename:name,data:blob}).then(function(){$("note").textContent="保存しました。"},function(e){if(e&&e.code!=="declined")$("note").textContent="保存できませんでした。"});
+};
+try{
+  if(window.claude&&claude.use){claude.use("downloads").then(function(d){dl=d;if(blob)$("dl").disabled=!dl;if(!dl&&blob)$("note").textContent="この画面ではダウンロードが使えません。Claudeのアプリ内で開いてください。"},function(){})}
+}catch(e){}
+ui();
+</script>
+</body>
+</html>
