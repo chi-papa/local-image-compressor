@@ -141,8 +141,7 @@ function run(){
     var d=Math.round((1-b.size/src.size)*100),r=$("ratio");
     r.textContent=d>=0?"−"+d+"%":"+"+(-d)+"%（元より大きい）";
     r.className=d>=0?"good":"bad";
-    $("dl").disabled=!dl;
-    $("note").textContent=dl?"":"この画面ではダウンロードが使えません。Claudeのアプリ内で開いてください。";
+    $("dl").disabled=false;
   },f.mime,S.fmt==="png"?undefined:S.q/100);
 }
 $("q").oninput=function(e){S.q=+e.target.value;$("qv").textContent=S.q;schedule()};
@@ -156,13 +155,13 @@ var dz=$("drop");
 dz.addEventListener("drop",function(e){load(e.dataTransfer.files[0])});
 document.addEventListener("paste",function(e){var it=[].slice.call(e.clipboardData.items).filter(function(i){return i.type.indexOf("image/")===0})[0];if(it)load(it.getAsFile())});
 $("dl").onclick=function(){
-  if(!dl||!blob)return;
+  if(!blob)return;
   var name=baseName+"-min."+FMT[S.fmt].ext;
-  dl.save({filename:name,data:blob}).then(function(){$("note").textContent="保存しました。"},function(e){if(e&&e.code!=="declined")$("note").textContent="保存できませんでした。"});
+  var u=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=u;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(u)},4000);
+  $("note").textContent="保存しました（ダウンロードフォルダを確認してください）。";
 };
-try{
-  if(window.claude&&claude.use){claude.use("downloads").then(function(d){dl=d;if(blob)$("dl").disabled=!dl;if(!dl&&blob)$("note").textContent="この画面ではダウンロードが使えません。Claudeのアプリ内で開いてください。"},function(){})}
-}catch(e){}
 ui();
 </script>
 </body>
